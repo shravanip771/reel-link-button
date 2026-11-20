@@ -4,7 +4,7 @@
 <section class="intro">
   <div class="flow">
     <div><strong>Today</strong> Comment "LINK" → wait for DM → "do you follow me?" → open profile → follow → go back</div>
-    <div><strong>With the button</strong> Tap once. Follow (if the creator chose it) and the link arrive together.</div>
+    <div><strong>With the button</strong> Open the comments, tap once at the top. The link lands in your DMs.</div>
   </div>
   <div class="seg" role="group" aria-label="Feed ranking">
     <a href="{{ url_for('feed', rank='trust') }}" class="{{ 'on' if mode == 'trust' }}">Trust-aware ranking</a>
@@ -18,6 +18,11 @@
     <span class="emoji" aria-hidden="true">{{ m.emoji }}</span>
     <span class="product">{{ m.product }}</span>
     <span class="rank">#{{ loop.index }}</span>
+    <div class="rail" aria-hidden="true">
+      <span>♥<small>{{ '{:,}'.format(m.likes) }}</small></span>
+      <span>💬<small>{{ comments.get(m.id, [])|length }}</small></span>
+      <span>➤</span>
+    </div>
   </div>
   <div class="meta">
     <div class="who">
@@ -26,33 +31,69 @@
     </div>
     <p class="caption">{{ m.caption }}</p>
     <div class="stats">
-      ♥ {{ '{:,}'.format(m.likes) }} · {{ '{:,}'.format(m.views) }} views
-      · rank score {{ '%.3f'|format(m.naive_score if mode == 'naive' else m.trust_score) }}
+      {{ '{:,}'.format(m.views) }} views · rank score {{ '%.3f'|format(m.naive_score if mode == 'naive' else m.trust_score) }}
     </div>
+    <button class="btn" data-open="{{ m.id }}">💬 Open comments</button>
   </div>
-
-  <div class="cta">
-    {% if not m.button_enabled %}
-      <div class="note">Link button not available yet: the creator account must be 90+ days old and in good standing.</div>
-    {% elif m.paused %}
-      <button class="btn" disabled>Paused · under review</button>
-      <span class="count">Reports are being reviewed</span>
-    {% else %}
-      <button class="btn primary" data-tap="{{ m.id }}" {% if m.id in tapped %}disabled{% endif %}>
-        {% if m.id in tapped %}Link sent ✓{% elif m.follow_gate %}Get link + Follow{% else %}Get link{% endif %}
-      </button>
-      <span class="count"><span id="count-{{ m.id }}">{{ m.public_count }}</span> requested</span>
-    {% endif %}
-  </div>
-  {% if m.button_enabled and not m.paused and m.follow_gate and m.id not in tapped %}
-    <div class="note">Tapping sends the link to your DMs and follows @{{ m.handle }}. You can unfollow any time.</div>
-  {% endif %}
 </article>
+
+<div class="backdrop" id="sheet-{{ m.id }}" hidden>
+  <section class="sheet" role="dialog" aria-label="Comments on {{ m.product }}">
+    <div class="grab"></div>
+    <div class="sheethead"><span>Comments</span><button class="x" data-close="{{ m.id }}" aria-label="Close comments">✕</button></div>
+
+    <div class="linkbar">
+      {% if not m.button_enabled %}
+        <div class="linknote">Link button not available yet: the creator account must be 90+ days old and in good standing.</div>
+      {% elif m.paused %}
+        <button class="getbtn" disabled>Paused · under review</button>
+        <div class="linknote">Reports on this link are being reviewed.</div>
+      {% else %}
+        <div class="linkrow">
+          <button class="getbtn" data-tap="{{ m.id }}" {% if m.id in tapped %}disabled{% endif %}>
+            {% if m.id in tapped %}Link sent ✓{% elif m.follow_gate %}Get link + Follow{% else %}Get link{% endif %}
+          </button>
+          <span class="reqcount"><b id="count-{{ m.id }}">{{ m.public_count }}</b> requested</span>
+        </div>
+        <div class="linknote">
+          {% if m.follow_gate %}Sends the link to your DMs and follows @{{ m.handle }}. You can unfollow any time.
+          {% else %}Sends the link to your DMs. No follow needed.{% endif %}
+          Comments below are for questions.
+        </div>
+      {% endif %}
+    </div>
+
+    <ul class="comments">
+      {% for c in comments.get(m.id, []) %}
+      <li>
+        <div class="avatar" aria-hidden="true">{{ c.author[0]|upper }}</div>
+        <div class="cbody">
+          <div class="cuser">{{ c.author }}{% if c.is_creator %} <span class="authortag">· Author</span>{% endif %}</div>
+          <div class="ctext">{{ c.body }}</div>
+          <div class="cmeta">Reply</div>
+        </div>
+        <div class="clike">♡<small>{{ c.likes }}</small></div>
+      </li>
+      {% endfor %}
+    </ul>
+    <div class="composer">Join the conversation…</div>
+  </section>
+</div>
 {% endfor %}
 {% endblock %}
 
 {% block scripts %}
 <script>
+  const sheet = (id) => document.getElementById('sheet-' + id);
+  function openSheet(id) { sheet(id).hidden = false; document.body.style.overflow = 'hidden'; }
+  function closeSheets() { document.querySelectorAll('.backdrop').forEach(s => s.hidden = true); document.body.style.overflow = ''; }
+
+  document.querySelectorAll('[data-open]').forEach(b => b.addEventListener('click', () => openSheet(b.dataset.open)));
+  document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', closeSheets));
+  document.querySelectorAll('.backdrop').forEach(s => s.addEventListener('click', e => { if (e.target === s) closeSheets(); }));
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheets(); });
+  if (location.hash === '#comments') { const first = document.querySelector('[data-open]'); if (first) openSheet(first.dataset.open); }
+
   document.querySelectorAll('[data-tap]').forEach(btn => {
     btn.addEventListener('click', async () => {
       const id = btn.dataset.tap;

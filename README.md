@@ -16,7 +16,7 @@ Most people drop out somewhere in that chain. For the creator, the comment secti
 
 ## The idea
 
-Add a button next to like / comment / share:
+Pin a button at the top of the comment section. The viewer opens the comments, taps once, and the link goes to their DMs. The comments underneath stay for real questions:
 
 | | Today | With the button |
 |---|---|---|
@@ -30,15 +30,15 @@ The creator picks **"Get link"** or **"Get link + Follow"** when posting. The fo
 
 ## What the prototype contains
 
-- **Feed** with a ranked list of Reels and the button (`/`). A toggle switches between raw-tap ranking and trust-aware ranking so you can see the difference.
+- **Feed** with a ranked list of Reels. Open a Reel's comments and the **Get link + Follow** button is pinned at the top, above the questions (`/`). A toggle switches between raw-tap ranking and trust-aware ranking so you can see the difference.
 - **DMs** inbox where the link lands, with *Open link*, *Report this link* and *Unfollow* (`/dms`).
 - **Dashboard** with per-Reel taps, link-click rate, 7-day follow retention, reports and rank movement (`/dashboard`).
 - **Synthetic data** with honest creators plus four abuse patterns: clickbait giveaway, bot-farmed taps, a scam link on an aged account, and a brand-new creator.
 - **34 automated tests** covering the ranking maths and the API behaviour.
 
-| Feed (trust-aware ranking) | DMs |
+| Comment section with the button pinned on top | DMs |
 |---|---|
-| ![Feed](docs/screenshots/feed-trust-ranking.png) | ![DMs](docs/screenshots/dms.png) |
+| ![Comment section](docs/screenshots/feed-comment-sheet.png) | ![DMs](docs/screenshots/dms.png) |
 
 ![Dashboard](docs/screenshots/dashboard.png)
 

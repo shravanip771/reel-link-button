@@ -21,8 +21,9 @@ def create_app(db_path: str | None = None) -> Flask:
     app = Flask(__name__)
     base = os.path.dirname(os.path.abspath(__file__))
     app.config["DB_PATH"] = db_path or os.environ.get("REEL_DB") or os.path.join(base, "reels.db")
-    if not os.path.exists(app.config["DB_PATH"]):
-        seed.seed(app.config["DB_PATH"])
+    path = app.config["DB_PATH"]
+    if not os.path.exists(path) or not database.schema_is_current(path):
+        seed.seed(path)  # first run, or a demo database from an older version
     app.teardown_appcontext(database.close_db)
 
     # ------------------------------------------------------------------ pages
@@ -38,7 +39,12 @@ def create_app(db_path: str | None = None) -> Flask:
             r["creator_id"]
             for r in db.execute("SELECT creator_id FROM follows WHERE user_id = ? AND ended_ts IS NULL", (VIEWER_ID,))
         }
-        return render_template("feed.html", items=items, tapped=tapped, following=following, mode=mode)
+        comments: dict[int, list] = {}
+        for c in db.execute("SELECT * FROM comments ORDER BY id"):
+            comments.setdefault(c["reel_id"], []).append(c)
+        return render_template(
+            "feed.html", items=items, tapped=tapped, following=following, mode=mode, comments=comments
+        )
 
     @app.get("/dms")
     def dms():

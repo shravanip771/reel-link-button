@@ -6,6 +6,7 @@ import sqlite3
 from flask import current_app, g
 
 SCHEMA = """
+DROP TABLE IF EXISTS comments;
 DROP TABLE IF EXISTS dms;
 DROP TABLE IF EXISTS follows;
 DROP TABLE IF EXISTS taps;
@@ -67,6 +68,16 @@ CREATE TABLE dms (
     UNIQUE (user_id, reel_id)
 );
 
+CREATE TABLE comments (
+    id         INTEGER PRIMARY KEY,
+    reel_id    INTEGER NOT NULL REFERENCES reels(id),
+    author     TEXT NOT NULL,
+    body       TEXT NOT NULL,
+    likes      INTEGER NOT NULL DEFAULT 0,
+    is_creator INTEGER NOT NULL DEFAULT 0       -- 1 when the creator replied
+);
+
+CREATE INDEX idx_comments_reel ON comments(reel_id);
 CREATE INDEX idx_taps_reel ON taps(reel_id);
 CREATE INDEX idx_dms_reel ON dms(reel_id);
 CREATE INDEX idx_follows_reel ON follows(via_reel_id);
@@ -82,6 +93,16 @@ def connect(path: str) -> sqlite3.Connection:
 
 def init_schema(conn: sqlite3.Connection) -> None:
     conn.executescript(SCHEMA)
+
+
+def schema_is_current(path: str) -> bool:
+    """True if an existing database file already has every table in SCHEMA (older demo files don't)."""
+    conn = sqlite3.connect(path)
+    try:
+        have = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
+    finally:
+        conn.close()
+    return {"users", "reels", "taps", "follows", "dms", "comments"} <= have
 
 
 def get_db() -> sqlite3.Connection:

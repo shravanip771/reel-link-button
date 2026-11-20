@@ -61,6 +61,40 @@ REELS = [
 ]
 
 
+# Real questions and warnings that stay in the comment section. The "link please" comments
+# are few because those requests move to the pinned button.
+COMMENTS = {
+    "meera.bangles": [
+        ("riya_k", "Are these available in size 2.6?", 14, 0),
+        ("meera.bangles", "Yes! Sizes 2.4, 2.6 and 2.8. The link has the size chart.", 6, 1),
+        ("sakshi.v", "Do they stay shiny after washing?", 9, 0),
+        ("neha_03", "link please 🙏", 2, 0),
+    ],
+    "tops_by_priya": [
+        ("anu.styles", "Is the white one see-through?", 21, 0),
+        ("tops_by_priya", "Not at all, I checked in direct sunlight 😄", 11, 1),
+        ("kavya.r", "Which size are you wearing here?", 5, 0),
+    ],
+    "study.with.sneha": [
+        ("rohit_dev", "Does it cover graphs and trees too?", 18, 0),
+        ("study.with.sneha", "Yes, chapters 6 to 9. The contents page is in the PDF.", 12, 1),
+        ("pooja.m", "Thank you so much!!", 7, 0),
+    ],
+    "ankita.crafts": [
+        ("diya.makes", "How long did this take?", 8, 0),
+        ("ankita.crafts", "About 4 hours with cotton rope.", 3, 1),
+    ],
+    "rina.thrifts": [("mitali_s", "Which flea market was this?", 3, 0)],
+    "giveaway.king": [
+        ("ritu_p", "Has anyone actually received a prize?", 58, 0),
+        ("sam.r", "The link just asks for my phone number...", 44, 0),
+    ],
+    "trend.hub99": [("aarav_k", "So many of the comments here look like bots", 31, 0)],
+    "quickdeals.store": [("tanvi_j", "Is this store legit? The price looks too good", 47, 0)],
+    "fresh.finds": [("isha.b", "Love these! When does the link open?", 4, 0)],
+}
+
+
 def _add_tap(rows, *, user_id, reel_id, creator_id, ts, gate, click_p, unfollow_p, fake, now, rng):
     """Append one tap, its DM, and (if the follow gate is on) its follow."""
     rows["taps"].append((user_id, reel_id, iso(ts), 0, int(fake)))
@@ -152,6 +186,10 @@ def seed(db_path: str, now: datetime | None = None, rng_seed: int = 7) -> None:
 
     conn.executemany("INSERT INTO users VALUES (?,?,?,?,?,?)", users + bot_users)
     conn.executemany("INSERT INTO reels VALUES (?,?,?,?,?,?,?,?,?,?,?,?)", reels)
+    conn.executemany(
+        "INSERT INTO comments (reel_id, author, body, likes, is_creator) VALUES (?,?,?,?,?)",
+        [(rid, *c) for rid, spec in enumerate(REELS, start=1) for c in COMMENTS.get(spec["handle"], [])],
+    )
     conn.executemany("INSERT INTO taps (user_id, reel_id, ts, was_following, sim_fake) VALUES (?,?,?,?,?)", rows["taps"])
     conn.executemany("INSERT INTO dms (user_id, reel_id, ts, clicked_ts, reported_ts) VALUES (?,?,?,?,?)",
                      [tuple(d) for d in rows["dms"]])
