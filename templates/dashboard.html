@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}Dashboard · Reel Link Button{% endblock %}
+{% block mainclass %}wide{% endblock %}
+{% block content %}
+<h1>Creator &amp; trust dashboard</h1>
+<p class="muted">All numbers come from synthetic events. Click through the feed and DMs, then refresh to watch them move.</p>
+
+<section class="tiles">
+  <div class="tile"><div class="big">{{ '{:,}'.format(totals.raw) }}</div><div>raw taps recorded</div></div>
+  <div class="tile"><div class="big">{{ '{:,}'.format(totals.valid) }}</div><div>taps that count after filters</div></div>
+  <div class="tile">
+    <div class="big">{{ '%.1f'|format(100 * (totals.fake - totals.fake_kept) / totals.fake if totals.fake else 0) }}%</div>
+    <div>of simulated fake taps removed</div>
+  </div>
+  <div class="tile">
+    <div class="big">{{ '%.1f'|format(100 * totals.organic_dropped / totals.organic if totals.organic else 0) }}%</div>
+    <div>of genuine taps wrongly removed</div>
+  </div>
+</section>
+<p class="muted small">The last two tiles grade the filters against labels that only exist in the simulation. Real traffic has no such labels, which is why the thresholds would need tuning on real data.</p>
+
+<h2>Per-Reel results</h2>
+<div class="tablewrap">
+<table>
+  <thead>
+    <tr>
+      <th>Creator</th><th>Raw taps</th><th>Count shown</th><th>Taps / views</th><th>Link click rate</th>
+      <th>7-day follow retention</th><th>Reports</th><th>Raw-tap rank</th><th>Trust rank</th><th>Status</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for m in items %}
+    {% set move = naive_rank[m.id] - trust_rank[m.id] %}
+    <tr>
+      <td><strong>@{{ m.handle }}</strong><div class="muted small">{{ m.product }}</div></td>
+      <td>{{ '{:,}'.format(m.raw_taps) }}</td>
+      <td>{{ m.public_count }}</td>
+      <td>{{ '%.1f'|format(100 * m.raw_tap_rate) }}%</td>
+      <td>{% if m.dms == 0 %}n/a{% else %}{{ '%.0f'|format(100 * m.click_rate) }}%{% endif %}</td>
+      <td>{% if m.retention is none %}n/a (no follow gate){% elif m.mature_follows == 0 %}n/a{% else %}{{ '%.0f'|format(100 * m.retention) }}%{% endif %}</td>
+      <td>{{ m.reports }}{% if m.dms %} <span class="muted small">({{ '%.1f'|format(100 * m.report_rate) }}%)</span>{% endif %}</td>
+      <td>#{{ naive_rank[m.id] }}</td>
+      <td>#{{ trust_rank[m.id] }}
+        {% if move > 0 %}<span class="up">▲ {{ move }}</span>{% elif move < 0 %}<span class="down">▼ {{ -move }}</span>{% endif %}
+      </td>
+      <td>
+        {% if not m.button_enabled %}<span class="chip">Not eligible</span>
+        {% elif m.paused %}<span class="chip bad">Paused</span>
+        {% elif m.discounted > 0.5 * m.raw_taps and m.raw_taps > 0 %}<span class="chip warn">Taps discounted</span>
+        {% else %}<span class="chip ok">Live</span>{% endif %}
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+<p class="muted small">Click rate and retention are smoothed toward 50% when a Reel has little data, so a handful of events can't swing the score. "Taps discounted" means more than half of its raw taps were filtered out.</p>
+
+<h2>How a Reel is scored</h2>
+<div class="two">
+  <div class="panel">
+    <h3>Which taps count</h3>
+    <ol>
+      <li>One tap per account per Reel.</li>
+      <li>The account must be at least {{ r.MIN_ACCOUNT_AGE_DAYS }} days old with activity ≥ {{ r.MIN_ACTIVITY }}.</li>
+      <li>Burst cap: in any {{ r.BURST_BUCKET_MIN }}-minute window, keep at most max({{ r.BURST_FLOOR }}, {{ r.BURST_MULT }} × the median window).</li>
+      <li>The public number is rounded down (for example "8.2K+") so tiny manipulations don't show.</li>
+    </ol>
+  </div>
+  <div class="panel">
+    <h3>Ranking score</h3>
+    <pre>like_rate
++ {{ r.TAP_WEIGHT }} × valid_tap_rate
+    × (quality / 0.5)
+    × report_penalty
+
+quality = ½ link-click rate + ½ 7-day retention
+         (smoothed toward 0.5 for small samples)
+report_penalty = 1 − {{ r.REPORT_PENALTY_SLOPE|int }} × report_rate
+Auto-pause at ≥ {{ r.PAUSE_MIN_REPORTS }} reports and ≥ {{ (100 * r.PAUSE_MIN_RATE)|int }}% of DMs</pre>
+  </div>
+</div>
+
+<p><button class="btn small ghost" id="reset">Reset demo data</button></p>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.getElementById('reset').addEventListener('click', async () => {
+    await fetch('/api/reset', { method: 'POST' });
+    location.reload();
+  });
+</script>
+{% endblock %}

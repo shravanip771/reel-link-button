@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Feed · Reel Link Button{% endblock %}
+{% block content %}
+<section class="intro">
+  <div class="flow">
+    <div><strong>Today</strong> Comment "LINK" → wait for DM → "do you follow me?" → open profile → follow → go back</div>
+    <div><strong>With the button</strong> Tap once. Follow (if the creator chose it) and the link arrive together.</div>
+  </div>
+  <div class="seg" role="group" aria-label="Feed ranking">
+    <a href="{{ url_for('feed', rank='trust') }}" class="{{ 'on' if mode == 'trust' }}">Trust-aware ranking</a>
+    <a href="{{ url_for('feed', rank='naive') }}" class="{{ 'on' if mode == 'naive' }}">Raw-tap ranking</a>
+  </div>
+</section>
+
+{% for m in items %}
+<article class="card" data-reel="{{ m.id }}">
+  <div class="visual" style="--hue: {{ (m.id * 47) % 360 }}">
+    <span class="emoji" aria-hidden="true">{{ m.emoji }}</span>
+    <span class="product">{{ m.product }}</span>
+    <span class="rank">#{{ loop.index }}</span>
+  </div>
+  <div class="meta">
+    <div class="who">
+      @{{ m.handle }}
+      {% if m.creator_id in following %}<span class="pill">Following</span>{% endif %}
+    </div>
+    <p class="caption">{{ m.caption }}</p>
+    <div class="stats">
+      ♥ {{ '{:,}'.format(m.likes) }} · {{ '{:,}'.format(m.views) }} views
+      · rank score {{ '%.3f'|format(m.naive_score if mode == 'naive' else m.trust_score) }}
+    </div>
+  </div>
+
+  <div class="cta">
+    {% if not m.button_enabled %}
+      <div class="note">Link button not available yet: the creator account must be 90+ days old and in good standing.</div>
+    {% elif m.paused %}
+      <button class="btn" disabled>Paused · under review</button>
+      <span class="count">Reports are being reviewed</span>
+    {% else %}
+      <button class="btn primary" data-tap="{{ m.id }}" {% if m.id in tapped %}disabled{% endif %}>
+        {% if m.id in tapped %}Link sent ✓{% elif m.follow_gate %}Get link + Follow{% else %}Get link{% endif %}
+      </button>
+      <span class="count"><span id="count-{{ m.id }}">{{ m.public_count }}</span> requested</span>
+    {% endif %}
+  </div>
+  {% if m.button_enabled and not m.paused and m.follow_gate and m.id not in tapped %}
+    <div class="note">Tapping sends the link to your DMs and follows @{{ m.handle }}. You can unfollow any time.</div>
+  {% endif %}
+</article>
+{% endfor %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.querySelectorAll('[data-tap]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = btn.dataset.tap;
+      btn.disabled = true;
+      try {
+        const res = await fetch(`/api/reel/${id}/tap`, { method: 'POST' });
+        const data = await res.json();
+        if (res.ok) {
+          btn.textContent = 'Link sent ✓';
+          document.getElementById('count-' + id).textContent = data.public_count;
+          toast(data.message);
+        } else {
+          toast(data.message || 'Something went wrong.');
+          if (res.status === 409) location.reload(); else btn.disabled = false;
+        }
+      } catch (e) {
+        toast('Network error. Try again.');
+        btn.disabled = false;
+      }
+    });
+  });
+</script>
+{% endblock %}

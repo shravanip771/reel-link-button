@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Reel Link Button{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">Reel Link Button <span class="tag">prototype</span></div>
+    <nav>
+      <a href="{{ url_for('feed') }}" class="{{ 'on' if request.endpoint == 'feed' }}">Feed</a>
+      <a href="{{ url_for('dms') }}" class="{{ 'on' if request.endpoint == 'dms' }}">DMs</a>
+      <a href="{{ url_for('dashboard') }}" class="{{ 'on' if request.endpoint == 'dashboard' }}">Dashboard</a>
+    </nav>
+  </header>
+  <main class="{% block mainclass %}narrow{% endblock %}">
+    {% block content %}{% endblock %}
+  </main>
+  <footer class="foot">
+    Independent student prototype with synthetic data. Not affiliated with or endorsed by Instagram or Meta.
+  </footer>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script>
+    function toast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      clearTimeout(window.__toastTimer);
+      window.__toastTimer = setTimeout(() => t.classList.remove('show'), 3200);
+    }
+  </script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

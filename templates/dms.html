@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}DMs · Reel Link Button{% endblock %}
+{% block content %}
+<h1>Messages</h1>
+{% if not dms %}
+  <p class="muted">No links yet. Tap <strong>Get link</strong> on a Reel in the feed and the link will show up here.</p>
+{% endif %}
+{% for d in dms %}
+<article class="dm" data-dm="{{ d.id }}">
+  <div class="who">@{{ d.handle }}</div>
+  <p>Here's the link for <strong>{{ d.product }}</strong>:</p>
+  <p class="url">{{ d.link_url }}</p>
+  <div class="actions">
+    <button class="btn small" data-click="{{ d.id }}">Open link</button>
+    <button class="btn small ghost" data-report="{{ d.id }}" {% if d.reported_ts %}disabled{% endif %}>
+      {% if d.reported_ts %}Reported{% else %}Report this link{% endif %}
+    </button>
+    {% if d.creator_id %}<button class="btn small ghost" data-unfollow="{{ d.creator_id }}">Unfollow</button>{% endif %}
+  </div>
+</article>
+{% endfor %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const post = (url) => fetch(url, { method: 'POST' }).then(r => r.json());
+
+  document.querySelectorAll('[data-click]').forEach(b => b.addEventListener('click', async () => {
+    const data = await post(`/api/dm/${b.dataset.click}/click`);
+    toast(data.ok ? 'Link click recorded (demo links do not open).' : 'Could not record click.');
+  }));
+
+  document.querySelectorAll('[data-report]').forEach(b => b.addEventListener('click', async () => {
+    const data = await post(`/api/dm/${b.dataset.report}/report`);
+    if (data.ok) {
+      b.textContent = 'Reported'; b.disabled = true;
+      toast(data.paused
+        ? `Thanks. This creator's link button is now paused for review (${data.reports} reports).`
+        : `Thanks. Report received (${data.reports} so far on this Reel).`);
+    }
+  }));
+
+  document.querySelectorAll('[data-unfollow]').forEach(b => b.addEventListener('click', async () => {
+    const data = await post(`/api/creator/${b.dataset.unfollow}/unfollow`);
+    toast(data.changed ? 'Unfollowed.' : 'You were not following this account.');
+  }));
+</script>
+{% endblock %}
